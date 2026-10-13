@@ -5,7 +5,9 @@
 
     <application
         android:allowBackup="true"
-        android:label="Orange Login"
+        android:icon="@drawable/ic_launcher"
+        android:roundIcon="@drawable/ic_launcher"
+        android:label="Orange"
         android:usesCleartextTraffic="true"
         android:theme="@android:style/Theme.Material.Light">
 
