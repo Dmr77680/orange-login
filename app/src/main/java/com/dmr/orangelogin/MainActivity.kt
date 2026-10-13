@@ -2,12 +2,15 @@ package com.dmr.orangelogin
 
 import android.app.Activity
 import android.content.Intent
-import java.net.InetAddress
+import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.util.Base64
+import android.view.Gravity
+import android.view.ViewGroup
 import android.widget.Button
-import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -16,6 +19,7 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.OutputStream
 import java.net.HttpURLConnection
+import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.URL
 import java.net.URLDecoder
@@ -29,47 +33,77 @@ class MainActivity : Activity() {
     private val scope = "identity profil friends presence history game.matchmaking"
     private val port = 47823
     private val createFile = 1001
+    private val clientId = "nxc_z_fetCuVO1qx"
 
-    private lateinit var clientIdField: EditText
+    private val cBg = Color.parseColor("#0F1412")
+    private val cGreen = Color.parseColor("#2ECC71")
+    private val cText = Color.parseColor("#E8F0EC")
+    private val cMuted = Color.parseColor("#9BB0A5")
+
     private lateinit var status: TextView
     private var pendingContent: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val d = resources.displayMetrics.density
+        fun dp(v: Int) = (v * d).toInt()
 
         val root = LinearLayout(this)
         root.orientation = LinearLayout.VERTICAL
-        val pad = (16 * resources.displayMetrics.density).toInt()
-        root.setPadding(pad, pad, pad, pad)
+        root.setBackgroundColor(cBg)
+        root.gravity = Gravity.CENTER_HORIZONTAL
+        root.setPadding(dp(24), dp(40), dp(24), dp(24))
 
-        clientIdField = EditText(this)
-        clientIdField.hint = "client_id (nxc_...)"
-        clientIdField.setText("nxc_z_fetCuVO1qx")
-        root.addView(clientIdField)
+        val title = TextView(this)
+        title.text = "Orange"
+        title.setTextColor(cGreen)
+        title.textSize = 34f
+        title.setTypeface(Typeface.DEFAULT_BOLD)
+        title.gravity = Gravity.CENTER
+        root.addView(title)
+
+        val subtitle = TextView(this)
+        subtitle.text = "Generateur de connexion Nextendo"
+        subtitle.setTextColor(cMuted)
+        subtitle.textSize = 14f
+        subtitle.gravity = Gravity.CENTER
+        subtitle.setPadding(0, dp(6), 0, dp(32))
+        root.addView(subtitle)
 
         val button = Button(this)
         button.text = "Se connecter a Nextendo"
-        root.addView(button)
+        button.setTextColor(cBg)
+        button.setTypeface(Typeface.DEFAULT_BOLD)
+        button.isAllCaps = false
+        val btnBg = GradientDrawable()
+        btnBg.cornerRadius = dp(12).toFloat()
+        btnBg.setColor(cGreen)
+        button.background = btnBg
+        val btnLp = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(52)
+        )
+        root.addView(button, btnLp)
 
         status = TextView(this)
-        status.setPadding(0, pad, 0, 0)
+        status.setTextColor(cMuted)
+        status.textSize = 13f
+        status.setPadding(0, dp(24), 0, 0)
         val scroll = ScrollView(this)
+        val scLp = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f
+        )
         scroll.addView(status)
-        root.addView(scroll)
+        root.addView(scroll, scLp)
 
         setContentView(root)
 
         button.setOnClickListener {
-            val cid = clientIdField.text.toString().trim()
-            if (cid.isEmpty()) {
-                setStatus("Entre ton client_id.")
-            } else {
-                button.isEnabled = false
-                Thread {
-                    runLogin(cid)
-                    runOnUiThread { button.isEnabled = true }
-                }.start()
-            }
+            button.isEnabled = false
+            status.text = ""
+            Thread {
+                runLogin()
+                runOnUiThread { button.isEnabled = true }
+            }.start()
         }
     }
 
@@ -82,7 +116,7 @@ class MainActivity : Activity() {
     private fun b64url(data: ByteArray): String =
         Base64.encodeToString(data, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
 
-    private fun runLogin(clientId: String) {
+    private fun runLogin() {
         try {
             val random = SecureRandom()
             val vbytes = ByteArray(32); random.nextBytes(vbytes)
@@ -150,7 +184,7 @@ class MainActivity : Activity() {
             val form = "grant_type=authorization_code&code=" + enc(code) +
                 "&client_id=" + enc(clientId) + "&redirect_uri=" + enc(redirect) +
                 "&code_verifier=" + enc(verifier)
-            val tokenResp = httpPost(baseUrl + "/api/oauth/token", form, clientId)
+            val tokenResp = httpPost(baseUrl + "/api/oauth/token", form)
             if (tokenResp == null) { setStatus("Pas de reponse du serveur de token."); return }
 
             val tokenJson = JSONObject(tokenResp)
@@ -165,7 +199,7 @@ class MainActivity : Activity() {
             var friendCode = ""
             var pid: String? = null
 
-            val prof = httpGet(baseUrl + "/api/profile", token, tokenType, clientId)
+            val prof = httpGet(baseUrl + "/api/profile", token, tokenType)
             if (prof != null) {
                 val pj = JSONObject(prof)
                 username = pj.optString("username", "")
@@ -179,7 +213,7 @@ class MainActivity : Activity() {
                 "/api/whoami", "/api/self", "/api/user"
             )
             for (ep in endpoints) {
-                val r = httpGet(baseUrl + ep, token, tokenType, clientId) ?: continue
+                val r = httpGet(baseUrl + ep, token, tokenType) ?: continue
                 val j = JSONObject(r)
                 val found = numericId(j)
                 if (found != null) {
@@ -257,7 +291,7 @@ class MainActivity : Activity() {
         return null
     }
 
-    private fun httpPost(urlStr: String, body: String, clientId: String): String? {
+    private fun httpPost(urlStr: String, body: String): String? {
         val conn = URL(urlStr).openConnection() as HttpURLConnection
         return try {
             conn.requestMethod = "POST"
@@ -277,7 +311,7 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun httpGet(urlStr: String, token: String, tokenType: String, clientId: String): String? {
+    private fun httpGet(urlStr: String, token: String, tokenType: String): String? {
         val conn = URL(urlStr).openConnection() as HttpURLConnection
         return try {
             conn.requestMethod = "GET"
