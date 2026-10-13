@@ -2,7 +2,7 @@ package com.dmr.orangelogin
 
 import android.app.Activity
 import android.content.Intent
-import android.net.InetAddress
+import java.net.InetAddress
 import android.net.Uri
 import android.os.Bundle
 import android.util.Base64
