@@ -193,6 +193,9 @@ class MainActivity : Activity() {
             if (tokenType.isEmpty()) tokenType = "Bearer"
             else tokenType = tokenType.substring(0, 1).uppercase() + tokenType.substring(1)
             if (token.isNullOrEmpty()) { setStatus("Token introuvable dans la reponse."); return }
+            val refreshToken = firstString(tokenJson, "refresh_token") ?: ""
+            val expiresIn = tokenJson.optLong("expires_in", 0L)
+            val tokenExpiry = if (expiresIn > 0) (System.currentTimeMillis() / 1000) + expiresIn else 0L
 
             setStatus("Recuperation du profil...")
             var username = ""
@@ -227,7 +230,8 @@ class MainActivity : Activity() {
             if (pid == null) { setStatus("pid introuvable sur les endpoints testes."); return }
 
             pendingContent = "pid=" + pid + "\nusername=" + username +
-                "\nfriend_code=" + friendCode + "\ntoken=" + token + "\n"
+                "\nfriend_code=" + friendCode + "\ntoken=" + token +
+                "\nrefresh_token=" + refreshToken + "\ntoken_expiry=" + tokenExpiry + "\n"
             setStatus("Connecte: " + username + " (pid " + pid + ").")
             setStatus("Choisis ou enregistrer nextendo_account.txt...")
             runOnUiThread {
